@@ -2,6 +2,9 @@ package study.querydsl.entity;
 
 import com.querydsl.core.QueryFactory;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.assertj.core.api.Assertions;
@@ -389,5 +392,95 @@ public class QuerydslBasicTest {
             System.out.println("tuple.get(JPAExpressions.select(memberSub.age.avg().from(memberSub))) = " +
                     tuple.get(JPAExpressions.select(memberSub.age.avg()).from(memberSub)));
         }
+    }
+
+    /**
+     * CASE 문
+     * SELECT, WHERE< ORDER BY 에서 사용 가능
+     */
+    @Test
+    public void caseQuery() throws Exception {
+        final List<String> result = jpaQueryFactory
+                .select(member.age
+                        .when(10).then("열살")
+                        .when(20).then("스무살")
+                        .otherwise("기타"))
+                .from(member)
+                .fetch();
+
+        assertThat(result.get(0)).isEqualTo("열살");
+    }
+
+    /**
+     * CASE 복잡한 조건
+     * CaseBuilder, otherwise
+     */
+    @Test
+    public void complexCaseQuery() throws Exception {
+        final List<String> result = jpaQueryFactory
+                .select(new CaseBuilder()
+                        .when(member.age.between(0, 20)).then("0~20살")
+                        .when(member.age.between(21, 30)).then("21~30살")
+                        .otherwise("기타"))
+                .from(member)
+                .fetch();
+
+        assertThat(result.get(0)).isEqualTo("0~20살");
+        assertThat(result.get(1)).isEqualTo("0~20살");
+        assertThat(result.get(2)).isEqualTo("21~30살");
+        assertThat(result.get(3)).isEqualTo("기타");
+    }
+
+    /**
+     * ORDER BY + CASE 까지 추가
+     * 1. 0 ~ 30 살이 아닌 회원을 가장 먼저 출력
+     * 2. 0 ~ 20 살 회원 출력
+     * 3. 21 ~ 30살 회원 출력
+     */
+
+    @Test
+    public void orderByAndCase() throws Exception {
+        final NumberExpression<Integer> rankPath = new CaseBuilder()
+                .when(member.age.between(0, 20)).then(2)
+                .when(member.age.between(21, 30)).then(1)
+                .otherwise(3);
+
+        final List<Tuple> result = jpaQueryFactory
+                .select(member.username, member.age, rankPath)
+                .from(member)
+                .orderBy(rankPath.desc())
+                .fetch();
+
+
+        for (var tuple :
+                result) {
+            final String username = tuple.get(member.username);
+            final Integer age = tuple.get(member.age);
+            final Integer rank = tuple.get(rankPath);
+
+            System.out.println("username = " + username + " age = " + age + " rank = " + rank);
+        }
+    }
+
+    /**
+     * 상수, 문자 더하기
+     * Expressions.constant(xxx) 사용
+     */
+    @Test
+    public void constAdd() throws Exception {
+        final Tuple result = jpaQueryFactory
+                .select(member.username, Expressions.constant("A"))
+                .from(member)
+                .fetchFirst();
+
+        System.out.println("result.get(member.username) = " + result.get(member.username));
+
+        final String result2 = jpaQueryFactory
+                .select(member.username.concat("_").concat(member.age.stringValue()))
+                .from(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        assertThat(result2).isEqualTo("member1_10");
     }
 }
