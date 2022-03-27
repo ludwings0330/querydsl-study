@@ -4,6 +4,7 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.assertj.core.api.Assertions;
@@ -202,4 +203,43 @@ public class QuerydslMiddleTest {
     /**
      * 수정, 삭제 벌크 연산
      */
+    @Test
+    public void vulkFunc() throws Exception {
+        final long count = jpaQueryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        final long count2 = jpaQueryFactory
+                .update(member)
+                .set(member.age, member.age.add(1))
+                .execute();
+
+        final long count3 = jpaQueryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
+
+    /**
+     * SQL function 호출하기
+     */
+    @Test
+    public void callSqlFunction() throws Exception {
+        // "member" 를 "M" 으로 replace
+        final String result = jpaQueryFactory
+                .select(Expressions.stringTemplate("function('replace', {0}, {1}, {2})", member.username, "member", "M"))
+                .from(member)
+                .fetchFirst();
+        System.out.println("result = " + result);
+
+        // 소문자로 변경해서 비교
+        final String result2 = jpaQueryFactory
+                .select(member.username)
+                .from(member)
+                .where(member.username.eq(Expressions.stringTemplate("function('lower', {0})", member.username)))
+                .fetchFirst();
+
+    }
 }
