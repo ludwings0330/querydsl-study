@@ -1,13 +1,14 @@
 //querydsl 추가
 buildscript {
-    dependencies {
-        classpath("gradle.plugin.com.ewerk.gradle.plugins:querydsl-plugin:1.0.10")
+    ext {
+        queryDslVersion = "5.0.0"
     }
 }
 
 plugins {
     id 'org.springframework.boot' version '2.6.4'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'com.ewerk.gradle.plugins.querydsl' version "1.0.10"
     id 'java'
 }
 
@@ -35,8 +36,8 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     ///querydsl 추가
-    implementation 'com.querydsl:querydsl-jpa'
-    implementation 'com.querydsl:querydsl-apt'
+    implementation "com.querydsl:querydsl-jpa:${queryDslVersion}"
+    annotationProcessor "com.querydsl:querydsl-apt:${queryDslVersion}"
     //querydsl 추가 끝
 }
 
@@ -46,34 +47,19 @@ tasks.named('test') {
 
 
 
-//querydsl 추가
+//querydsl 추가 시작
 def querydslDir = "$buildDir/generated/querydsl"
-
 querydsl {
-    library = "com.querydsl:querydsl-apt"
     jpa = true
     querydslSourcesDir = querydslDir
 }
-
 sourceSets {
-    main {
-        java {
-            srcDirs = ['src/main/java', querydslDir]
-        }
-    }
+    main.java.srcDir querydslDir
 }
-
-compileQuerydsl{
-    options.annotationProcessorPath = configurations.querydsl
-}
-
 configurations {
     querydsl.extendsFrom compileClasspath
 }
-
-/* comileQuerydsl.doFirst 추가: 재컴파일 시 q파일을 모두 지우도록 */
-compileQuerydsl.doFirst {
-    if(file(querydslDir).exists())
-        delete(file(querydslDir))
+compileQuerydsl {
+    options.annotationProcessorPath = configurations.querydsl
 }
 //querydsl 추가 끝
